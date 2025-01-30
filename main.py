@@ -1,61 +1,68 @@
 import http.client
+
 from pynput import keyboard, mouse
 
 # ESP8266 IP address and pin control paths
 ESP8266_IP = "192.168.0.116"
 
 # Global variables to store the state of each pin
-d3_state = False
-d8_state = False
+lamp_state = False
+led_state = False
+tomada_state = False
 
 
 def send_request(pin, state):
+    # print('request sent.', state)
     """
     Send an HTTP request to control the given pin on the ESP8266.
-    :param pin: 'D3' or 'D8'
+    :param pin: 'D1', 'D2'...
     :param state: 'on' or 'off'
     """
     try:
         # Open connection to ESP8266
-        conn = http.client.HTTPConnection(ESP8266_IP)
+        conn = http.client.HTTPConnection(ESP8266_IP, timeout=0.5)
 
         # Construct the path to control pin
         path = f"/{pin}/{state}"
 
         # Send the GET request
         conn.request("GET", path)
-        response = conn.getresponse()
 
-        # Close connection
-        conn.close()
-        """
-        if response.status == 200:
-            print(f"Successfully set {pin} to {state}")
-        else:
-            print(f"Failed to control {pin}, Status code: {response.status}")
-        """
     except Exception as e:
         print(f"Error sending request: {e}")
+    finally:
+        # Close connection
+        conn.close()
 
 
-def toggle_d3():
+def toggle_lamp():
     """
-    Toggles the D3 pin between 'on' and 'off'.
+    Toggles the D1 pin between 'on' and 'off'.
     """
-    global d3_state
-    d3_state = not d3_state  # Toggle the state
-    state = 'on' if d3_state else 'off'
-    send_request('D3', state)
+    global lamp_state
+    lamp_state = not lamp_state  # Toggle the state
+    state = 'on' if lamp_state else 'off'
+    send_request('lampada', state)
 
 
-def toggle_d8():
+def toggle_led():
     """
-    Toggles the D8 pin between 'on' and 'off'.
+    Toggles the D2 pin between 'on' and 'off'.
     """
-    global d8_state
-    d8_state = not d8_state  # Toggle the state
-    state = 'on' if d8_state else 'off'
-    send_request('D8', state)
+    global led_state
+    led_state = not led_state  # Toggle the state
+    state = 'on' if led_state else 'off'
+    send_request('led', state)
+
+
+def toggle_tomada():
+    """
+    Toggles the D6 pin between 'on' and 'off'.
+    """
+    global tomada_state
+    tomada_state = not tomada_state  # Toggle the state
+    state = 'on' if tomada_state else 'off'
+    send_request('tomada', state)
 
 
 def on_mouse_click(x, y, button, pressed):
@@ -64,11 +71,13 @@ def on_mouse_click(x, y, button, pressed):
     """
     if pressed:
         if button == mouse.Button.x1:
-            toggle_d8()
-            # print("X1 mouse button clicked - Toggling D8")
+            toggle_lamp()
+            # print("X1 mouse button clicked - Toggling D2")
         elif button == mouse.Button.x2:
-            toggle_d3()
-            # print("X2 mouse button clicked - Toggling D3")
+            toggle_led()
+            # print("X2 mouse button clicked - Toggling D1")
+        #elif button == mouse.Button.middle:
+        #   toggle_tomada()
 
 
 if __name__ == "__main__":
@@ -78,14 +87,15 @@ if __name__ == "__main__":
     mouse_listener.start()
 
     # Define the hotkeys
-    hotkeys = {
-        '<ctrl>+<shift>+d': toggle_d3,
-        '<ctrl>+<shift>+o': toggle_d8
-    }
+    hotkeys = keyboard.GlobalHotKeys({
+        '<alt_gr>+,': toggle_lamp,
+        '<alt_gr>+.': toggle_led,
+        '<alt_gr>+;': toggle_tomada
+    })
 
-    # Start the listener for the defined hotkeys
-    with keyboard.GlobalHotKeys(hotkeys) as h:
-        h.join()
-
-    with mouse.Listener(on_click=on_mouse_click) as listener:
-        listener.join()
+    try:
+        # Start listening for keyboard shortcuts
+        hotkeys.start()
+        hotkeys.join()
+    except Exception as e:
+        print(f"Error in keyboard listener: {e}")
